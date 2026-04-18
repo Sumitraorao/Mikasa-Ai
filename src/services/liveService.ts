@@ -39,25 +39,60 @@ export class LiveSessionManager {
           throw new Error("Your browser does not support microphone access. Please use a modern browser like Chrome or Edge.");
         }
 
+        // Try to list devices first to 'wake up' the system and check for hardware presence
+        let mics: MediaDeviceInfo[] = [];
         try {
-          this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
-            } 
-          });
-        } catch (initialError) {
-          console.warn("Initial microphone request failed, trying simple constraints:", initialError);
-          // Fallback to simplest audio request
-          this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          mics = devices.filter(d => d.kind === 'audioinput');
+          console.log("Audio input devices found:", mics.length);
+        } catch (e) {
+          console.warn("Could not enumerate devices before request", e);
         }
+
+        // Tiered constraints fallback
+        const constraintTiers = [
+          { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } },
+          { audio: { echoCancellation: true } },
+          { audio: true }
+        ];
+
+        let stream: MediaStream | null = null;
+        let lastError: any = null;
+
+        for (const constraints of constraintTiers) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (stream) {
+              console.log("Microphone access granted with constraints:", constraints);
+              break;
+            }
+          } catch (e: any) {
+            lastError = e;
+            // If it's a permission error, don't keep trying simpler constraints, just fail
+            if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+              break;
+            }
+            console.warn(`Constraint tier failed:`, constraints, e.name);
+          }
+        }
+
+        if (!stream) {
+          if (mics.length === 0) {
+            throw new Error("No hardware found: Mikasa can't find a microphone. Please connect one or check system settings.");
+          }
+          throw lastError || new Error("Failed to initialize microphone.");
+        }
+        
+        this.mediaStream = stream;
       } catch (micError: any) {
         console.error("Microphone Access Error:", micError);
-        if (micError.name === 'NotAllowedError' || micError.name === 'PermissionDeniedError') {
+        const errName = micError.name || '';
+        const errMsg = (micError.message || '').toLowerCase();
+        
+        if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError' || errMsg.includes('permission denied')) {
           throw new Error("Permission denied: Please allow microphone access in your browser settings. If you're in a preview, try opening the app in a new tab.");
-        } else if (micError.name === 'NotFoundError' || micError.name === 'DevicesNotFoundError') {
-          throw new Error("No microphone found: Please connect a microphone and try again.");
+        } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError' || errMsg.includes('not found') || errMsg.includes('no device')) {
+          throw new Error("No microphone found: Mikasa can't find a microphone. Please connect one, check system settings, or try opening this in a new tab.");
         } else {
           throw new Error(`Microphone error: ${micError.message || 'Unknown error'}`);
         }

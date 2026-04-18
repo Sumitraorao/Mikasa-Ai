@@ -185,7 +185,8 @@ export default function App() {
         console.error("Failed to start session", e);
         const msg = e.message || String(e);
         setErrorMessage(msg);
-        if (msg.includes("Permission denied") || msg.includes("Microphone")) {
+        const lowerMsg = msg.toLowerCase();
+        if (lowerMsg.includes("permission") || lowerMsg.includes("microphone") || lowerMsg.includes("not found") || lowerMsg.includes("device")) {
           setShowPermissionModal(true);
         }
         setIsSessionActive(false);
