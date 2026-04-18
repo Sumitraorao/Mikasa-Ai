@@ -39,13 +39,19 @@ export class LiveSessionManager {
           throw new Error("Your browser does not support microphone access. Please use a modern browser like Chrome or Edge.");
         }
 
-        this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          } 
-        });
+        try {
+          this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            } 
+          });
+        } catch (initialError) {
+          console.warn("Initial microphone request failed, trying simple constraints:", initialError);
+          // Fallback to simplest audio request
+          this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
       } catch (micError: any) {
         console.error("Microphone Access Error:", micError);
         if (micError.name === 'NotAllowedError' || micError.name === 'PermissionDeniedError') {
@@ -282,9 +288,17 @@ export class LiveSessionManager {
 
   private stopPlayback() {
     if (this.playbackContext) {
-      this.playbackContext.close();
+      if (this.playbackContext.state !== 'closed') {
+        try {
+          this.playbackContext.close().catch(() => {});
+        } catch (e) {
+          console.error("Error closing playback context:", e);
+        }
+      }
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       this.playbackContext = new AudioContextClass({ sampleRate: 24000 });
+      // Update global reference so next session doesn't use a closed context
+      LiveSessionManager.globalPlaybackContext = this.playbackContext;
       this.nextPlayTime = this.playbackContext.currentTime;
       this.isPlaying = false;
     }

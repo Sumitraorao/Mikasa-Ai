@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function PermissionModal({ onClose, error }: Props) {
-  const isNoMic = error?.includes("No microphone found");
+  const isNoMic = error?.toLowerCase().includes("no microphone") || error?.toLowerCase().includes("not found");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
@@ -24,16 +24,16 @@ export default function PermissionModal({ onClose, error }: Props) {
         </div>
         
         <h2 className="text-2xl font-serif font-medium text-white mb-3">
-          {isNoMic ? "Microphone Not Found" : "Microphone Blocked"}
+          {isNoMic ? "Microphone Issue" : "Microphone Blocked"}
         </h2>
         <p className="text-white/60 text-sm mb-6 leading-relaxed">
           {isNoMic 
-            ? "Mikasa couldn't find a microphone connected to your device. Please check your hardware."
+            ? "Mikasa is having trouble connecting to your microphone. This can happen if no mic is connected or if it's being used by another app."
             : "Your browser has blocked microphone access for this site. Mikasa cannot hear you until you allow it."
           }
         </p>
         
-        {!isNoMic && (
+        {!isNoMic ? (
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left w-full mb-8">
             <p className="text-sm text-white/80 font-medium mb-2">How to fix this:</p>
             <ol className="text-xs text-white/60 list-decimal pl-4 space-y-2">
@@ -43,15 +43,14 @@ export default function PermissionModal({ onClose, error }: Props) {
               <li>Refresh the page.</li>
             </ol>
           </div>
-        )}
-
-        {isNoMic && (
+        ) : (
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left w-full mb-8">
             <p className="text-sm text-white/80 font-medium mb-2">Troubleshooting:</p>
             <ul className="text-xs text-white/60 list-disc pl-4 space-y-2">
               <li>Ensure your microphone is plugged in correctly.</li>
-              <li>Check if your microphone is being used by another app.</li>
-              <li>Try restarting your browser.</li>
+              <li>Check your system's Sound Settings to see if the mic is disabled.</li>
+              <li>Ensure no other applications (like Zoom or Teams) are using the mic.</li>
+              <li className="text-white/90">If you're in a browser preview, <strong>opening the app in a new tab</strong> often fixes this.</li>
             </ul>
           </div>
         )}

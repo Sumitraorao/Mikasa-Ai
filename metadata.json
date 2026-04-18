@@ -1,7 +1,8 @@
 {
-  "name": "Remix: Remix: Mikasa - AI Voice Assistant",
+  "name": "MikasaAI Voice Assistant",
   "description": "A sassy, witty, and intelligent Indian female AI voice assistant created by Sumit.",
   "requestFramePermissions": [
     "microphone"
-  ]
+  ],
+  "majorCapabilities": []
 }
